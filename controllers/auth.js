@@ -1,6 +1,7 @@
 import bcryptjs from "bcryptjs";
 import crypto from "crypto";
 import speakeasy from 'speakeasy';
+import qrcode from 'qrcode';
 
 
 import { generateTokenAndSetCookie } from "../utils/generateTokenAndSetCookies.js";
