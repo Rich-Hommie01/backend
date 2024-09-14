@@ -29,6 +29,7 @@ export const signup = async (req, res) => {
 
     await user.save();
 
+    // Automatically log in the user after signup by generating a JWT token and setting it as a cookie
     generateTokenAndSetCookie(res, user._id);
 
     res.status(201).json({
