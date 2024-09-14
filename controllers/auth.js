@@ -69,39 +69,31 @@ export const signup = async (req, res) => {
 
 export const login = async (req, res) => {
   const { username, password } = req.body;
-  const user = await User.findOne({ username });
-
-  if (!user) {
-    return res.status(400).json({ success: false, message: 'Invalid credentials' });
+  
+  // Validate user credentials...
+  
+  if (user && user.mfaEnabled) {
+    return res.status(200).json({ mfaRequired: true, userId: user._id });
   }
 
-  const isPasswordValid = await bcryptjs.compare(password, user.password);
-  if (!isPasswordValid) {
-    return res.status(400).json({ success: false, message: 'Invalid credentials' });
-  }
-
-  // Check if user has MFA enabled
-  if (user.isMfaEnabled) {
-    return res.json({ mfaRequired: true, userId: user._id });
-  }
-
-  // If MFA is not enabled, prompt to enable it after login
-  const secret = speakeasy.generateSecret({ name: 'YourAppName', length: 20 });
-  user.mfaSecret = secret.base32;
-  await user.save();
-
-  qrcode.toDataURL(secret.otpauth_url, (err, data) => {
-    if (err) return res.status(500).send('Error generating QR code');
-    
-    res.json({
-      success: true,
-      message: "Login successful, enable MFA by scanning QR code",
-      qrCode: data,
-      userId: user._id
+  if (!user.mfaEnabled) {
+    const secret = speakeasy.generateSecret({
+      name: 'YourAppName', 
+      length: 20
     });
-  });
-};
 
+    user.mfaSecret = secret.base32; // Save the secret to the user
+    await user.save();
+
+    const qrCodeUrl = await qrcode.toDataURL(secret.otpauth_url);
+    
+    return res.status(200).json({
+      mfaSetupRequired: true,
+      userId: user._id,
+      qrCode: qrCodeUrl
+    });
+  }
+};
 
 export const verifyMfa = async (req, res) => {
   const { userId, token } = req.body;
