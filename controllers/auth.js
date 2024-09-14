@@ -114,27 +114,33 @@ export const login = async (req, res) => {
 
 
 export const verifyMfa = async (req, res) => {
-  const { userId, token } = req.body;
-  const user = await User.findById(userId);
+  const { userId, otp } = req.body;
+  try {
+    const user = await User.findById(userId);
 
-  const verified = speakeasy.totp.verify({
-    secret: user.mfaSecret,
-    encoding: 'base32',
-    token: token,
-  });
+    if (!user) {
+      return res.status(400).json({ success: false, message: "User not found" });
+    }
 
-  if (!verified) {
-    return res.status(400).json({ success: false, message: "Invalid MFA token" });
+    const verified = speakeasy.totp.verify({
+      secret: user.mfaSecret,
+      encoding: 'base32',
+      token: otp,
+      window: 1,  // Adjust the window to allow a few seconds of time drift
+    });
+
+    if (!verified) {
+      console.log(`Invalid OTP. Expected: ${speakeasy.totp({ secret: user.mfaSecret, encoding: 'base32' })}, Received: ${otp}`);
+      return res.status(400).json({ success: false, message: "Invalid OTP" });
+    }
+
+    // MFA verified, log the user in
+    generateTokenAndSetCookie(res, user._id);
+    res.status(200).json({ success: true, message: "MFA verified, logged in successfully", user: { ...user._doc, password: undefined } });
+  } catch (error) {
+    console.error("MFA verification error:", error.message);
+    res.status(400).json({ success: false, message: error.message });
   }
-
-  // MFA successful, proceed with login
-  generateTokenAndSetCookie(res, user._id);
-  
-  res.status(200).json({
-    success: true,
-    message: "MFA verified, logged in successfully",
-    user: { ...user._doc, password: undefined },
-  });
 };
 
 
