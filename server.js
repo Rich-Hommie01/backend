@@ -1,7 +1,8 @@
-const express = require('express');
-const speakeasy = require('speakeasy');
-const qrcode = require('qrcode');
-const bodyParser = require('body-parser');
+import express from 'express';
+import speakeasy from 'speakeasy';
+import qrcode from 'qrcode';
+import bodyParser from 'body-parser';
+
 const app = express();
 
 app.use(bodyParser.json());
