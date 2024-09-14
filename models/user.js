@@ -39,20 +39,9 @@ const userSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
-    mfaSecret: { 
-    type: String 
-    },
-    isMfaEnabled: { 
-    type: Boolean, 
-    default: false 
-    },
     lastLogin: {
       type: Date,
       default: Date.now,
-    },
-    isVerified: {
-      type: Boolean,
-      default: false,
     },
     resetPasswordToken: String,
     resetPasswordExpireAt: Date,
