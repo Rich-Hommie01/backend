@@ -44,10 +44,10 @@ export const signup = async (req, res) => {
 
 // Login Controller
 export const login = async (req, res) => {
-  const { email, password } = req.body;
+  const { username, password } = req.body;
   try {
-    const user = await User.findOne({ email });
-    
+    const user = await User.findOne({ username }); // Use username instead of email
+
     if (!user) {
       return res.status(400).json({ success: false, message: "Invalid credentials" });
     }
