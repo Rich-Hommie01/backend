@@ -1,49 +1,104 @@
-import express from "express";
-import dotenv from "dotenv";
-import cors from "cors";
-import cookieParser from "cookie-parser";
-import { connectDB } from "./config/db.js";
-import authRoutes from "./routes/auth.js";
-import speakeasy from "speakeasy"; // Use ES6 imports
-import qrcode from "qrcode"; // Use ES6 imports
-
-dotenv.config();
-
+const express = require('express');
+const speakeasy = require('speakeasy');
+const qrcode = require('qrcode');
+const bodyParser = require('body-parser');
 const app = express();
-const PORT = process.env.PORT || 5000;
 
-app.use(cors({ origin: "*", credentials: true }));
-app.use(express.json());
-app.use(cookieParser());
+app.use(bodyParser.json());
 
-app.use("/api/auth", authRoutes);
+// Mock user database
+let users = [
+  { id: 1, username: 'john_doe', password: 'password123', mfaEnabled: false, mfaSecret: null }
+];
 
-// Route to generate MFA secret and return QR code
-app.post('/generate-mfa', async (req, res) => {
-  const secret = speakeasy.generateSecret({
-    name: 'YourAppName',
-    length: 20
-  });
+// Route to login user (initial)
+app.post('/api/auth/login', (req, res) => {
+  const { username, password } = req.body;
+  const user = users.find(u => u.username === username && u.password === password);
 
-  // Save the secret to the user's database (assuming userId is passed in request body)
-  try {
-    // Replace with actual database logic
-    // Example: await User.findByIdAndUpdate(req.body.userId, { mfaSecret: secret.base32 });
+  if (!user) {
+    return res.status(400).json({ success: false, message: 'Invalid credentials' });
+  }
 
-    qrcode.toDataURL(secret.otpauth_url, (err, data) => {
-      if (err) return res.status(500).send('Error generating QR code');
-      res.json({ qrCode: data, secret: secret.base32 });
-    });
-  } catch (err) {
-    res.status(500).send('Error saving MFA secret');
+  // Check if MFA is enabled for the user
+  if (user.mfaEnabled) {
+    return res.json({ mfaRequired: true, userId: user.id });
+  } else {
+    // If MFA is not enabled, set up MFA
+    return res.json({ mfaSetupRequired: true, userId: user.id });
   }
 });
 
-// Connect to database first, then start server
-connectDB().then(() => {
-  app.listen(PORT, () => {
-    console.log(`Server started on port ${PORT}`);
+// Route to set up MFA for first-time users
+app.post('/api/auth/setup-mfa', (req, res) => {
+  const { userId } = req.body;
+  const user = users.find(u => u.id === userId);
+
+  if (!user) {
+    return res.status(400).json({ success: false, message: 'User not found' });
+  }
+
+  // Generate TOTP secret
+  const secret = speakeasy.generateSecret({ length: 20 });
+  user.mfaSecret = secret.base32; // Store the base32 secret
+
+  // Generate QR code for TOTP setup
+  qrcode.toDataURL(secret.otpauth_url, (err, dataUrl) => {
+    if (err) {
+      return res.status(500).json({ success: false, message: 'Failed to generate QR code' });
+    }
+    res.json({ success: true, qrCode: dataUrl });
   });
-}).catch((error) => {
-  console.log("Failed to connect to the database:", error);
+});
+
+// Route to verify MFA setup with OTP
+app.post('/api/auth/verify-mfa-setup', (req, res) => {
+  const { userId, otp } = req.body;
+  const user = users.find(u => u.id === userId);
+
+  if (!user) {
+    return res.status(400).json({ success: false, message: 'User not found' });
+  }
+
+  // Verify the OTP using speakeasy
+  const isVerified = speakeasy.totp.verify({
+    secret: user.mfaSecret,
+    encoding: 'base32',
+    token: otp,
+  });
+
+  if (isVerified) {
+    user.mfaEnabled = true; // Mark the user as MFA-enabled
+    return res.json({ success: true, message: 'MFA setup complete' });
+  } else {
+    return res.status(400).json({ success: false, message: 'Invalid OTP' });
+  }
+});
+
+// Route to verify MFA during login
+app.post('/api/auth/verify-mfa', (req, res) => {
+  const { userId, otp } = req.body;
+  const user = users.find(u => u.id === userId);
+
+  if (!user) {
+    return res.status(400).json({ success: false, message: 'User not found' });
+  }
+
+  // Verify OTP using the stored secret
+  const isVerified = speakeasy.totp.verify({
+    secret: user.mfaSecret,
+    encoding: 'base32',
+    token: otp,
+  });
+
+  if (isVerified) {
+    return res.json({ success: true, message: 'Login successful', user });
+  } else {
+    return res.status(400).json({ success: false, message: 'Invalid OTP' });
+  }
+});
+
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
 });

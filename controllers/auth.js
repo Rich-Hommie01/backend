@@ -1,104 +1,97 @@
-const express = require('express');
-const speakeasy = require('speakeasy');
-const qrcode = require('qrcode');
-const bodyParser = require('body-parser');
-const app = express();
+// controllers/auth.js
+import jwt from 'jsonwebtoken';
+import bcrypt from 'bcryptjs';
+import User from '../models/User.js'; // Assuming you have a User model
+const JWT_SECRET = process.env.JWT_SECRET || 'yourSecretKey';
 
-app.use(bodyParser.json());
-
-// Mock user database
-let users = [
-  { id: 1, username: 'john_doe', password: 'password123', mfaEnabled: false, mfaSecret: null }
-];
-
-// Route to login user (initial)
-app.post('/api/auth/login', (req, res) => {
+// Login function
+export const login = async (req, res) => {
   const { username, password } = req.body;
-  const user = users.find(u => u.username === username && u.password === password);
 
-  if (!user) {
-    return res.status(400).json({ success: false, message: 'Invalid credentials' });
-  }
-
-  // Check if MFA is enabled for the user
-  if (user.mfaEnabled) {
-    return res.json({ mfaRequired: true, userId: user.id });
-  } else {
-    // If MFA is not enabled, set up MFA
-    return res.json({ mfaSetupRequired: true, userId: user.id });
-  }
-});
-
-// Route to set up MFA for first-time users
-app.post('/api/auth/setup-mfa', (req, res) => {
-  const { userId } = req.body;
-  const user = users.find(u => u.id === userId);
-
-  if (!user) {
-    return res.status(400).json({ success: false, message: 'User not found' });
-  }
-
-  // Generate TOTP secret
-  const secret = speakeasy.generateSecret({ length: 20 });
-  user.mfaSecret = secret.base32; // Store the base32 secret
-
-  // Generate QR code for TOTP setup
-  qrcode.toDataURL(secret.otpauth_url, (err, dataUrl) => {
-    if (err) {
-      return res.status(500).json({ success: false, message: 'Failed to generate QR code' });
+  try {
+    // Find user by username
+    const user = await User.findOne({ username });
+    if (!user) {
+      return res.status(401).json({ message: 'Invalid credentials' });
     }
-    res.json({ success: true, qrCode: dataUrl });
-  });
-});
 
-// Route to verify MFA setup with OTP
-app.post('/api/auth/verify-mfa-setup', (req, res) => {
-  const { userId, otp } = req.body;
-  const user = users.find(u => u.id === userId);
+    // Compare password
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(401).json({ message: 'Invalid credentials' });
+    }
 
-  if (!user) {
-    return res.status(400).json({ success: false, message: 'User not found' });
+    // Generate JWT
+    const token = jwt.sign(
+      { id: user._id, username: user.username },
+      JWT_SECRET,
+      { expiresIn: '1h' }
+    );
+
+    // Respond with the token and user details
+    res.json({
+      message: 'Login successful',
+      token,
+      user: {
+        name: user.name,
+        lastLogin: user.lastLogin,
+      },
+    });
+
+    // Optionally, update lastLogin field in the database
+    user.lastLogin = Date.now();
+    await user.save();
+
+  } catch (error) {
+    console.error('Login error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// Signup function
+export const signup = async (req, res) => {
+  const { username, password, name } = req.body;
+
+  try {
+    // Check if user already exists
+    const existingUser = await User.findOne({ username });
+    if (existingUser) {
+      return res.status(400).json({ message: 'User already exists' });
+    }
+
+    // Hash the password
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Create new user
+    const user = new User({ username, password: hashedPassword, name });
+    await user.save();
+
+    res.status(201).json({ message: 'User created successfully' });
+  } catch (error) {
+    console.error('Signup error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// Middleware to check JWT token
+export const checkAuth = (req, res, next) => {
+  const token = req.headers.authorization?.split(' ')[1];
+
+  if (!token) {
+    return res.status(401).json({ message: 'Authentication failed: No token provided.' });
   }
 
-  // Verify the OTP using speakeasy
-  const isVerified = speakeasy.totp.verify({
-    secret: user.mfaSecret,
-    encoding: 'base32',
-    token: otp,
-  });
-
-  if (isVerified) {
-    user.mfaEnabled = true; // Mark the user as MFA-enabled
-    return res.json({ success: true, message: 'MFA setup complete' });
-  } else {
-    return res.status(400).json({ success: false, message: 'Invalid OTP' });
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    req.user = decoded;
+    next();
+  } catch (error) {
+    return res.status(403).json({ message: 'Authentication failed: Invalid token.' });
   }
-});
+};
 
-// Route to verify MFA during login
-app.post('/api/auth/verify-mfa', (req, res) => {
-  const { userId, otp } = req.body;
-  const user = users.find(u => u.id === userId);
-
-  if (!user) {
-    return res.status(400).json({ success: false, message: 'User not found' });
-  }
-
-  // Verify OTP using the stored secret
-  const isVerified = speakeasy.totp.verify({
-    secret: user.mfaSecret,
-    encoding: 'base32',
-    token: otp,
-  });
-
-  if (isVerified) {
-    return res.json({ success: true, message: 'Login successful', user });
-  } else {
-    return res.status(400).json({ success: false, message: 'Invalid OTP' });
-  }
-});
-
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+// Logout function (optional)
+export const logout = (req, res) => {
+  // Optionally, handle logout by deleting session or token client-side
+  res.status(200).json({ message: 'Logged out successfully' });
+};
