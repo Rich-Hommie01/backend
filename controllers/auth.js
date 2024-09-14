@@ -126,7 +126,7 @@ export const verifyMfa = async (req, res) => {
       secret: user.mfaSecret,
       encoding: 'base32',
       token: otp,
-      window: 1,  // Adjust the window to allow a few seconds of time drift
+      window: 5,  // Adjust the window to allow a few seconds of time drift
     });
 
     if (!verified) {
