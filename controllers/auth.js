@@ -1,5 +1,7 @@
 import bcryptjs from "bcryptjs";
 import crypto from "crypto";
+import speakeasy from 'speakeasy';
+
 
 import { generateTokenAndSetCookie } from "../utils/generateTokenAndSetCookies.js";
 import { sendPasswordResetEmail, sendResetSuccessEmail, } from "../mailtrap/emails.js";
