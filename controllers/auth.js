@@ -3,11 +3,11 @@ import crypto from "crypto";
 import speakeasy from 'speakeasy';
 import qrcode from 'qrcode';
 
-
 import { generateTokenAndSetCookie } from "../utils/generateTokenAndSetCookies.js";
-import { sendPasswordResetEmail, sendResetSuccessEmail, } from "../mailtrap/emails.js";
+import { sendPasswordResetEmail, sendResetSuccessEmail } from "../mailtrap/emails.js";
 import { User } from "../models/user.js";
 
+// Signup function
 export const signup = async (req, res) => {
   const { email, password, name, username, address, dob, ssn, phone } = req.body;
 
@@ -19,8 +19,6 @@ export const signup = async (req, res) => {
 
     // Check if the user already exists
     const userAlreadyExists = await User.findOne({ email });
-    console.log("userAlreadyExists", userAlreadyExists);
-
     if (userAlreadyExists) {
       return res.status(400).json({ success: false, message: "User already exists" });
     }
@@ -67,6 +65,7 @@ export const signup = async (req, res) => {
   }
 };
 
+// Login function
 export const login = async (req, res) => {
   const { username, password } = req.body;
 
@@ -106,27 +105,33 @@ export const login = async (req, res) => {
         qrCode: qrCodeUrl,
       });
     }
+
+    // If MFA is not required and already enabled, log the user in
+    generateTokenAndSetCookie(res, user._id);
+    return res.status(200).json({ success: true, message: "Login successful" });
+
   } catch (error) {
-    console.error("Login error:", error);
+    console.error("Login error:", error.message);
     res.status(500).json({ success: false, message: "Internal server error" });
   }
 };
 
-
+// Verify MFA function
 export const verifyMfa = async (req, res) => {
   const { userId, otp } = req.body;
+
   try {
     const user = await User.findById(userId);
-
     if (!user) {
       return res.status(400).json({ success: false, message: "User not found" });
     }
 
+    // Verify the OTP
     const verified = speakeasy.totp.verify({
       secret: user.mfaSecret,
       encoding: 'base32',
       token: otp,
-      window: 5,  // Adjust the window to allow a few seconds of time drift
+      window: 5,  // Adjust the window to allow time drift
     });
 
     if (!verified) {
@@ -143,22 +148,20 @@ export const verifyMfa = async (req, res) => {
   }
 };
 
-
-
+// Logout function
 export const logout = async (req, res) => {
   res.clearCookie("token");
   res.status(200).json({ success: true, message: "Logged out successfully" });
 };
 
+// Forgot password function
 export const forgotPassword = async (req, res) => {
   const { email } = req.body;
   try {
     const user = await User.findOne({ email });
 
     if (!user) {
-      return res
-        .status(400)
-        .json({ success: false, message: "User not found" });
+      return res.status(400).json({ success: false, message: "User not found" });
     }
 
     // Generate reset token
@@ -167,27 +170,19 @@ export const forgotPassword = async (req, res) => {
 
     user.resetPasswordToken = resetToken;
     user.resetPasswordExpiresAt = resetTokenExpiresAt;
-
     await user.save();
 
-    // send email
-    await sendPasswordResetEmail(
-      user.email,
-      `${process.env.CLIENT_URL}/reset-password/${resetToken}`
-    );
+    // Send email
+    await sendPasswordResetEmail(user.email, `${process.env.CLIENT_URL}/reset-password/${resetToken}`);
 
-    res
-      .status(200)
-      .json({
-        success: true,
-        message: "Password reset link sent to your email",
-      });
+    res.status(200).json({ success: true, message: "Password reset link sent to your email" });
   } catch (error) {
-    console.log("Error in forgotPassword ", error);
+    console.log("Error in forgotPassword ", error.message);
     res.status(400).json({ success: false, message: error.message });
   }
 };
 
+// Reset password function
 export const resetPassword = async (req, res) => {
   try {
     const { token } = req.params;
@@ -199,12 +194,10 @@ export const resetPassword = async (req, res) => {
     });
 
     if (!user) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Invalid or expired reset token" });
+      return res.status(400).json({ success: false, message: "Invalid or expired reset token" });
     }
 
-    // update password
+    // Update password
     const hashedPassword = await bcryptjs.hash(password, 10);
 
     user.password = hashedPassword;
@@ -214,27 +207,24 @@ export const resetPassword = async (req, res) => {
 
     await sendResetSuccessEmail(user.email);
 
-    res
-      .status(200)
-      .json({ success: true, message: "Password reset successful" });
+    res.status(200).json({ success: true, message: "Password reset successful" });
   } catch (error) {
-    console.log("Error in resetPassword ", error);
+    console.log("Error in resetPassword ", error.message);
     res.status(400).json({ success: false, message: error.message });
   }
 };
 
+// Check authentication function
 export const checkAuth = async (req, res) => {
   try {
     const user = await User.findById(req.userId).select("-password");
     if (!user) {
-      return res
-        .status(400)
-        .json({ success: false, message: "User not found" });
+      return res.status(400).json({ success: false, message: "User not found" });
     }
 
     res.status(200).json({ success: true, user });
   } catch (error) {
-    console.log("Error in checkAuth ", error);
+    console.log("Error in checkAuth ", error.message);
     res.status(400).json({ success: false, message: error.message });
   }
 };
