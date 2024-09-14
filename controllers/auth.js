@@ -69,31 +69,49 @@ export const signup = async (req, res) => {
 
 export const login = async (req, res) => {
   const { username, password } = req.body;
-  
-  // Validate user credentials...
-  
-  if (user && user.mfaEnabled) {
-    return res.status(200).json({ mfaRequired: true, userId: user._id });
-  }
 
-  if (!user.mfaEnabled) {
-    const secret = speakeasy.generateSecret({
-      name: 'YourAppName', 
-      length: 20
-    });
+  try {
+    // Check if the user exists
+    const user = await User.findOne({ username });
+    if (!user) {
+      return res.status(400).json({ success: false, message: "Invalid credentials" });
+    }
 
-    user.mfaSecret = secret.base32; // Save the secret to the user
-    await user.save();
+    // Compare the password
+    const passwordMatch = await bcryptjs.compare(password, user.password);
+    if (!passwordMatch) {
+      return res.status(400).json({ success: false, message: "Invalid credentials" });
+    }
 
-    const qrCodeUrl = await qrcode.toDataURL(secret.otpauth_url);
-    
-    return res.status(200).json({
-      mfaSetupRequired: true,
-      userId: user._id,
-      qrCode: qrCodeUrl
-    });
+    // Check if MFA is enabled
+    if (user.mfaEnabled) {
+      // If MFA is enabled, ask for the OTP
+      return res.status(200).json({ mfaRequired: true, userId: user._id });
+    }
+
+    // If MFA is not enabled, prompt the user to set up MFA
+    if (!user.mfaEnabled) {
+      // Generate MFA secret for first-time MFA setup
+      const secret = speakeasy.generateSecret({ name: 'YourAppName', length: 20 });
+      user.mfaSecret = secret.base32; // Save the secret to the user
+      await user.save();
+
+      // Generate the QR code for the user to scan
+      const qrCodeUrl = await qrcode.toDataURL(secret.otpauth_url);
+
+      // Return response with the QR code to set up MFA
+      return res.status(200).json({
+        mfaSetupRequired: true,
+        userId: user._id,
+        qrCode: qrCodeUrl,
+      });
+    }
+  } catch (error) {
+    console.error("Login error:", error);
+    res.status(500).json({ success: false, message: "Internal server error" });
   }
 };
+
 
 export const verifyMfa = async (req, res) => {
   const { userId, token } = req.body;
