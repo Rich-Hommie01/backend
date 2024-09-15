@@ -1,4 +1,4 @@
-import User from "../models/user.js"; // Assuming you have a User model
+import User from "../models/user"; // Assuming you have a User model
 
 export const updateBalance = async (req, res) => {
   const { userId, amount } = req.body; // We will send userId and amount from the frontend
