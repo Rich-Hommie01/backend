@@ -30,7 +30,8 @@ export const signup = async (req, res) => {
       address,
       dob,
       ssn,
-      phone
+      phone,
+      isVerified: true
     });
 
     await user.save();
