@@ -1,6 +1,18 @@
 import express from "express";
-import { login, logout, signup, forgotPassword, resetPassword, checkAuth } from "../controllers/auth.js";
-import { signupValidationRules, validateSignup, loginValidationRules, validateLogin } from "../validators/auth.js";
+import {
+  login,
+  logout,
+  signup,
+  forgotPassword,
+  resetPassword,
+  checkAuth
+} from "../controllers/auth.js";
+import {
+  signupValidationRules,
+  validateSignup,
+  loginValidationRules,
+  validateLogin
+} from "../validators/auth.js";
 import { verifyToken } from "../middleware/verifyToken.js";
 
 const router = express.Router();
