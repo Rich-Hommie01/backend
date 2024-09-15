@@ -3,22 +3,37 @@ import crypto from "crypto";
 import { generateTokenAndSetCookie } from "../utils/generateTokenAndSetCookies.js";
 import { sendPasswordResetEmail, sendResetSuccessEmail } from "../mailtrap/emails.js";
 import { User } from "../models/user.js";
+import { check, validationResult } from "express-validator"; // Import express-validator
+
+// Validation middleware for signup and login
+export const validateSignup = [
+  check("email", "Please enter a valid email").isEmail(),
+  check("username", "Username is required").notEmpty(),
+  check("password", "Password must be at least 6 characters long").isLength({ min: 6 }),
+];
+
+export const validateLogin = [
+  check("username", "Username is required").notEmpty(),
+  check("password", "Password is required").notEmpty(),
+];
 
 // Signup Controller
 export const signup = async (req, res) => {
+  const errors = validationResult(req); // Check for validation errors
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ success: false, errors: errors.array() });
+  }
+
   const { email, password, name, username, address, dob, ssn, phone } = req.body;
 
   try {
-    // Check if the user already exists
-    const userAlreadyExists = await User.findOne({ username });
+    const userAlreadyExists = await User.findOne({ email });
     if (userAlreadyExists) {
       return res.status(400).json({ success: false, message: "User already exists" });
     }
 
-    // Hash the password before saving
     const hashedPassword = await bcryptjs.hash(password, 10);
 
-    // Create a new user
     const user = new User({
       email,
       password: hashedPassword,
@@ -27,54 +42,50 @@ export const signup = async (req, res) => {
       address,
       dob,
       ssn,
-      phone
+      phone,
     });
 
-    // Save the new user to the database
     await user.save();
 
-    // Automatically log in the user by generating a token and setting it as a cookie
+    // Automatically log in the user after signup by generating a JWT token and setting it as a cookie
     generateTokenAndSetCookie(res, user._id);
 
-    // Send success response
     res.status(201).json({
       success: true,
       message: "User created successfully",
       user: { ...user._doc, password: undefined },
     });
   } catch (error) {
-    console.error("Error during signup: ", error);
     res.status(400).json({ success: false, message: error.message });
   }
 };
 
 // Login Controller
 export const login = async (req, res) => {
-  const { username, password } = req.body;
+  const errors = validationResult(req); // Check for validation errors
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ success: false, errors: errors.array() });
+  }
 
+  const { username, password } = req.body;
   try {
-    // Check if the user exists
-    const user = await User.findOne({ username });
+    const user = await User.findOne({ username }); // Use username instead of email
+
     if (!user) {
-      console.log(`User not found with username: ${username}`);
       return res.status(400).json({ success: false, message: "Invalid credentials" });
     }
 
-    // Validate the password
     const isPasswordValid = await bcryptjs.compare(password, user.password);
-    console.log(`Password validation result for user ${username}: ${isPasswordValid}`);
+
     if (!isPasswordValid) {
       return res.status(400).json({ success: false, message: "Invalid credentials" });
     }
 
-    // Generate token and set it as a cookie
     generateTokenAndSetCookie(res, user._id);
 
-    // Update last login date
     user.lastLogin = new Date();
     await user.save();
 
-    // Send success response
     res.status(200).json({
       success: true,
       message: "Logged in successfully",
@@ -84,7 +95,7 @@ export const login = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Error during login: ", error);
+    console.log("Error in login ", error);
     res.status(400).json({ success: false, message: error.message });
   }
 };
@@ -120,7 +131,7 @@ export const forgotPassword = async (req, res) => {
 
     res.status(200).json({ success: true, message: "Password reset link sent to your email" });
   } catch (error) {
-    console.error("Error in forgotPassword: ", error);
+    console.log("Error in forgotPassword ", error);
     res.status(400).json({ success: false, message: error.message });
   }
 };
@@ -151,7 +162,7 @@ export const resetPassword = async (req, res) => {
 
     res.status(200).json({ success: true, message: "Password reset successful" });
   } catch (error) {
-    console.error("Error in resetPassword: ", error);
+    console.log("Error in resetPassword ", error);
     res.status(400).json({ success: false, message: error.message });
   }
 };
@@ -166,7 +177,7 @@ export const checkAuth = async (req, res) => {
 
     res.status(200).json({ success: true, user });
   } catch (error) {
-    console.error("Error in checkAuth: ", error);
+    console.log("Error in checkAuth ", error);
     res.status(400).json({ success: false, message: error.message });
   }
 };
