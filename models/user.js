@@ -2,6 +2,10 @@ import mongoose from "mongoose";
 
 const userSchema = new mongoose.Schema(
   {
+    balance: {
+      type: Number,
+      default: 0, // Set the initial balance to zero
+    },
     email: {
       type: String,
       required: true,
