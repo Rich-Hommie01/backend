@@ -23,7 +23,7 @@ export const signup = async (req, res) => {
     const hashedPassword = await bcryptjs.hash(password, 10);
 
     const user = new User({
-      email, // Optional field, can be removed if unnecessary
+      email,
       password: hashedPassword,
       name,
       username,
@@ -73,13 +73,38 @@ export const login = async (req, res) => {
       success: true,
       message: "Logged in successfully",
       user: {
-        ...user._doc,
+        id: user._id,   
+        ...user._doc,    
         password: undefined,
       },
     });
   } catch (error) {
     console.log("Error in login ", error);
     res.status(400).json({ success: false, message: error.message });
+  }
+};
+
+// Update Balance Controller
+export const updateBalance = async (req, res) => {
+  const { userId, amount } = req.body;
+
+  try {
+    const user = await User.findById(userId);
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    user.balance += amount;
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Balance updated successfully",
+      balance: user.balance,
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 

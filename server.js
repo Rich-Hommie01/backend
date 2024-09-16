@@ -14,10 +14,10 @@ const PORT = process.env.PORT || 5000;
 
 // Enable CORS with multiple origins
 app.use(cors({
-  origin: ['https://vfcu.onrender.com', 'http://localhost:3000'], // Allowed frontend domains
-  methods: ['GET', 'POST', 'PUT', 'DELETE'], // Allowed methods
-  allowedHeaders: ['Content-Type', 'Authorization'], // Allowed headers
-  credentials: true // Allow cookies to be sent
+  origin: ['https://vfcu.onrender.com', 'http://localhost:3000'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true
 }));
 
 // Middleware
@@ -27,11 +27,9 @@ app.use(cookieParser());
 // API Routes
 app.use("/api/auth", authRoutes);
 
-// Static file serving for React
+// Serve static files from the React app's build folder
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-
-// Serve static files from the React app's build folder
 app.use(express.static(path.join(__dirname, 'build')));
 
 // Catch-all route for React
