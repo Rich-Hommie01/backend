@@ -47,6 +47,19 @@ const userSchema = new mongoose.Schema(
       type: Date,
       default: Date.now,
     },
+    idCardNumber: {
+      type: String,
+      required: true,
+    },
+    idExpirationDate: {
+      type: Date, 
+      required: true,
+    },
+    stateIdType: {
+      type: String,
+      enum: ['Driver\'s License', 'State ID', 'Passport'],
+      required: true,
+    },
     resetPasswordToken: String,
     resetPasswordExpireAt: Date,
     verificationToken: String,

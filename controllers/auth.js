@@ -12,7 +12,7 @@ export const signup = async (req, res) => {
     return res.status(400).json({ success: false, errors: errors.array() });
   }
 
-  const { email, password, name, username, address, dob, ssn, phone } = req.body;
+  const { email, password, name, username, address, dob, ssn, phone, idCardNumber, idExpirationDate, stateIdType } = req.body;
 
   try {
     const userAlreadyExists = await User.findOne({ username });
@@ -31,7 +31,9 @@ export const signup = async (req, res) => {
       dob,
       ssn,
       phone,
-      isVerified: true
+      idCardNumber,
+      idExpirationDate,
+      stateIdType,
     });
 
     await user.save();
