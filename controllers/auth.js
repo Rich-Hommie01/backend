@@ -12,7 +12,9 @@ export const signup = async (req, res) => {
     return res.status(400).json({ success: false, errors: errors.array() });
   }
 
-  const { email, password, name, username, address, dob, ssn, phone, idCardNumber, idExpirationDate, stateIdType } = req.body;
+  const { email, password, firstName, middleName, lastName, dob, street, apt, city, state, zipCode, username, phone, idNumber, issueState,
+    expirationDate, ssn,
+  } = req.body;
 
   try {
     const userAlreadyExists = await User.findOne({ username });
@@ -25,15 +27,21 @@ export const signup = async (req, res) => {
     const user = new User({
       email,
       password: hashedPassword,
-      name,
-      username,
-      address,
+      firstName,
+      middleName,
+      lastName,
       dob,
-      ssn,
+      street,
+      apt,
+      city,
+      state,
+      zipCode,
+      username,
       phone,
-      idCardNumber,
-      idExpirationDate,
-      stateIdType,
+      idNumber,
+      issueState,
+      expirationDate,
+      ssn,
     });
 
     await user.save();
