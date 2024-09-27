@@ -146,7 +146,6 @@ export const updateBalance = async (req, res) => {
 
   try {
     const user = await User.findById(userId);
-
     if (!user) {
       return res.status(404).json({ success: false, message: "User not found" });
     }
@@ -155,11 +154,11 @@ export const updateBalance = async (req, res) => {
     user.balance += amount;
     await user.save();
 
-    // Create a new transaction with default description
+    // Create a new transaction
     const transaction = new Transaction({
       userId,
       amount,
-      description: 'Online scheduled transfer from CHK 4924 Confirmation# xxxxx90304', // Default description
+      description: 'Online scheduled transfer from CHK 4924 Confirmation# xxxxx90304',
     });
     await transaction.save(); // Save the transaction to the database
 
@@ -173,6 +172,7 @@ export const updateBalance = async (req, res) => {
   }
 };
 
+// Get Transactions Controller
 export const getTransactions = async (req, res) => {
   const { userId } = req.params;
 
