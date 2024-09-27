@@ -85,6 +85,10 @@ const userSchema = new mongoose.Schema(
       required: true,
       match: [/^\d{3}\d{2}\d{4}$/, "SSN must be in the format XXX-XX-XXXX"],
     },
+    isApproved: { 
+      type: Boolean, 
+      default: false 
+    },
     lastLogin: {
       type: Date,
       default: Date.now,

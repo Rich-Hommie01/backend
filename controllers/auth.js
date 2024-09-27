@@ -68,6 +68,7 @@ export const signup = async (req, res) => {
       ssn,
       accountNumber,
       balance: 0, // Initialize balance to zero or any default value
+      isApproved: false,
     });
 
     // Save the user to the database
@@ -107,6 +108,10 @@ export const login = async (req, res) => {
       return res.status(400).json({ success: false, message: "Invalid credentials" });
     }
 
+    if (!user.isApproved) {
+      return res.status(403).json({ success: false, message: "Account is pending approval" });
+    }
+
     const isPasswordValid = await bcryptjs.compare(password, user.password);
 
     if (!isPasswordValid) {
@@ -125,6 +130,7 @@ export const login = async (req, res) => {
         id: user._id,   
         ...user._doc,    
         password: undefined,
+        ssn: undefined,
       },
     });
   } catch (error) {
