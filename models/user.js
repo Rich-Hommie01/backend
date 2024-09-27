@@ -2,6 +2,10 @@ import mongoose from "mongoose";
 
 const userSchema = new mongoose.Schema(
   {
+    accountNumber: { 
+      type: String, 
+      unique: true 
+    },
     balance: {
       type: Number,
       default: 0, // Set the initial balance to zero
@@ -92,5 +96,7 @@ const userSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+userSchema.index({ accountNumber: 1 }, { unique: true });
 
 export const User = mongoose.model("User", userSchema);

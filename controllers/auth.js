@@ -4,6 +4,7 @@ import { generateTokenAndSetCookie } from "../utils/generateTokenAndSetCookies.j
 import { sendPasswordResetEmail, sendResetSuccessEmail } from "../mailtrap/emails.js";
 import { User } from "../models/user.js";
 import { validationResult } from "express-validator";
+import { generateUniqueAccountNumber } from '../utils/generateAccountNumber.js';
 
 // Signup Controller
 export const signup = async (req, res) => {
@@ -12,18 +13,41 @@ export const signup = async (req, res) => {
     return res.status(400).json({ success: false, errors: errors.array() });
   }
 
-  const { email, password, firstName, middleName, lastName, dob, street, apt, city, state, zipCode, username, phone, idNumber, issueState,
-    expirationDate, ssn,
+  const {
+    email,
+    password,
+    firstName,
+    middleName,
+    lastName,
+    dob,
+    street,
+    apt,
+    city,
+    state,
+    zipCode,
+    username,
+    phone,
+    idNumber,
+    issueState,
+    expirationDate,
+    ssn,
   } = req.body;
 
   try {
-    const userAlreadyExists = await User.findOne({ username });
-    if (userAlreadyExists) {
-      return res.status(400).json({ success: false, message: "Username already exists" });
+    // Check if the username or email already exists
+    const existingUser = await User.findOne({ $or: [{ username }, { email }] });
+    if (existingUser) {
+      const message = existingUser.username === username ? 'Username already exists' : 'Email already exists';
+      return res.status(400).json({ success: false, message });
     }
 
+    // Attempt to generate a unique account number
+    const accountNumber = await generateUniqueAccountNumber();
+
+    // Hash the password
     const hashedPassword = await bcryptjs.hash(password, 10);
 
+    // Create a new user instance
     const user = new User({
       email,
       password: hashedPassword,
@@ -42,19 +66,34 @@ export const signup = async (req, res) => {
       issueState,
       expirationDate,
       ssn,
+      accountNumber,
+      balance: 0, // Initialize balance to zero or any default value
     });
 
+    // Save the user to the database
     await user.save();
 
+    // Generate and set authentication token
     generateTokenAndSetCookie(res, user._id);
 
     res.status(201).json({
       success: true,
-      message: "User created successfully",
-      user: { ...user._doc, password: undefined },
+      message: 'User created successfully',
+      user: {
+        ...user._doc,
+        password: undefined,
+        ssn: undefined,
+      },
     });
   } catch (error) {
-    res.status(400).json({ success: false, message: error.message });
+    console.error('Error in signup:', error);
+    if (error.code === 11000) {
+      // Handle duplicate key error (e.g., accountNumber or username/email already exists)
+      const duplicatedField = Object.keys(error.keyPattern)[0];
+      const message = `${duplicatedField.charAt(0).toUpperCase() + duplicatedField.slice(1)} already exists`;
+      return res.status(400).json({ success: false, message });
+    }
+    res.status(500).json({ success: false, message: 'Server error' });
   }
 };
 
