@@ -142,10 +142,10 @@ export const login = async (req, res) => {
 
 // Update Balance Controller
 export const updateBalance = async (req, res) => {
-  const { userId, amount } = req.body;
+  const { id, amount } = req.body;
 
   try {
-    const user = await User.findById(userId);
+    const user = await User.findById(id);
 
     if (!user) {
       return res.status(404).json({ success: false, message: "User not found" });
@@ -157,7 +157,7 @@ export const updateBalance = async (req, res) => {
 
     // Create a new transaction with default description
     const transaction = new Transaction({
-      userId,
+      id,
       amount,
       description: 'Online scheduled transfer from CHK 4924 Confirmation# xxxxx90304', // Default description
     });
@@ -174,10 +174,10 @@ export const updateBalance = async (req, res) => {
 };
 
 export const getTransactions = async (req, res) => {
-  const { userId } = req.params;
+  const { id } = req.params;
 
   try {
-    const transactions = await Transaction.find({ userId });
+    const transactions = await Transaction.find({ id });
     res.status(200).json(transactions);
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -255,7 +255,7 @@ export const resetPassword = async (req, res) => {
 // Check Authentication Controller
 export const checkAuth = async (req, res) => {
   try {
-    const user = await User.findById(req.userId).select("-password");
+    const user = await User.findById(req.id).select("-password");
     if (!user) {
       return res.status(400).json({ success: false, message: "User not found" });
     }
