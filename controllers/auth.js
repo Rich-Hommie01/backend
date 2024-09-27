@@ -150,8 +150,17 @@ export const updateBalance = async (req, res) => {
       return res.status(404).json({ success: false, message: "User not found" });
     }
 
+    // Update user balance
     user.balance += amount;
     await user.save();
+
+    // Create a new transaction with default description
+    const transaction = new Transaction({
+      userId,
+      amount,
+      description: 'Online scheduled transfer from CHK 4924 Confirmation# xxxxx90304', // Default description
+    });
+    await transaction.save(); // Save the transaction to the database
 
     res.status(200).json({
       success: true,
@@ -162,6 +171,18 @@ export const updateBalance = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
+export const getTransactions = async (req, res) => {
+  const { userId } = req.params;
+
+  try {
+    const transactions = await Transaction.find({ userId });
+    res.status(200).json(transactions);
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 
 // Logout Controller
 export const logout = async (req, res) => {
