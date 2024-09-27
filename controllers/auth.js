@@ -142,10 +142,10 @@ export const login = async (req, res) => {
 
 // Update Balance Controller
 export const updateBalance = async (req, res) => {
-  const { id, amount } = req.body;
+  const { userId, amount } = req.body;
 
   try {
-    const user = await User.findById(id);
+    const user = await User.findById(userId);
 
     if (!user) {
       return res.status(404).json({ success: false, message: "User not found" });
@@ -157,7 +157,7 @@ export const updateBalance = async (req, res) => {
 
     // Create a new transaction with default description
     const transaction = new Transaction({
-      id,
+      userId,
       amount,
       description: 'Online scheduled transfer from CHK 4924 Confirmation# xxxxx90304', // Default description
     });
@@ -174,22 +174,22 @@ export const updateBalance = async (req, res) => {
 };
 
 export const getTransactions = async (req, res) => {
-  const { id } = req.params;
+  const { userId } = req.params;
 
   try {
-    const transactions = await Transaction.find({ id });
+    const transactions = await Transaction.find({ userId });
     res.status(200).json(transactions);
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
 };
 
-
 // Logout Controller
 export const logout = async (req, res) => {
   res.clearCookie("token");
   res.status(200).json({ success: true, message: "Logged out successfully" });
 };
+
 
 // Forgot Password Controller
 export const forgotPassword = async (req, res) => {
@@ -255,7 +255,7 @@ export const resetPassword = async (req, res) => {
 // Check Authentication Controller
 export const checkAuth = async (req, res) => {
   try {
-    const user = await User.findById(req.id).select("-password");
+    const user = await User.findById(req.userId).select("-password");
     if (!user) {
       return res.status(400).json({ success: false, message: "User not found" });
     }

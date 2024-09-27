@@ -83,7 +83,7 @@ const userSchema = new mongoose.Schema(
     ssn: {
       type: String,
       required: true,
-      match: [/^\d{3}\d{2}\d{4}$/, "SSN must be in the format XXX-XX-XXXX"],
+      match: [/^\d{3}\d{2}\d{4}$/, "SSN must be in the format XXXXXXXXX"],
     },
     isApproved: { 
       type: Boolean, 
