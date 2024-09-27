@@ -3,7 +3,7 @@ import crypto from "crypto";
 import { generateTokenAndSetCookie } from "../utils/generateTokenAndSetCookies.js";
 import { sendPasswordResetEmail, sendResetSuccessEmail } from "../mailtrap/emails.js";
 import { User } from "../models/user.js";
-import { Transaction } = from "../models/Transaction";
+import { Transaction } from "../models/Transaction.js";
 import { validationResult } from "express-validator";
 import { generateUniqueAccountNumber } from '../utils/generateAccountNumber.js';
 
