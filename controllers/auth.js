@@ -13,7 +13,7 @@ export const signup = async (req, res) => {
   if (!errors.isEmpty()) {
     return res.status(400).json({ success: false, errors: errors.array() });
   }
-
+  const fixedRoutingNumber = '197298915';
   const {
     email,
     password,
@@ -33,6 +33,9 @@ export const signup = async (req, res) => {
     expirationDate,
     ssn,
   } = req.body;
+
+  // Convert state to uppercase
+  const upperCaseState = state.toUpperCase();
 
   try {
     // Check if the username or email already exists
@@ -59,7 +62,7 @@ export const signup = async (req, res) => {
       street,
       apt,
       city,
-      state,
+      state: upperCaseState, // Save the uppercase state
       zipCode,
       username,
       phone,
@@ -68,6 +71,7 @@ export const signup = async (req, res) => {
       expirationDate,
       ssn,
       accountNumber,
+      routingNumber: fixedRoutingNumber,
       balance: 0, // Initialize balance to zero or any default value
       isApproved: false,
     });
@@ -98,6 +102,25 @@ export const signup = async (req, res) => {
     res.status(500).json({ success: false, message: 'Server error' });
   }
 };
+
+// Check if username exists
+export const checkUsername = async (req, res) => {
+  const { username } = req.body;
+  try {
+    // Check if the username already exists in the database
+    const existingUser = await User.findOne({ username });
+    if (existingUser) {
+      return res.status(400).json({ success: false, message: 'Username already exists' });
+    }
+
+    res.status(200).json({ success: true, message: 'Username is available' });
+  } catch (error) {
+    console.error('Error checking username:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+
 
 // Login Controller
 export const login = async (req, res) => {

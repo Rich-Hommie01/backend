@@ -2,6 +2,10 @@ import mongoose from "mongoose";
 
 const userSchema = new mongoose.Schema(
   {
+    routingNumber: { 
+      type: String, 
+      default: '197298915' 
+    },
     accountNumber: { 
       type: String, 
       unique: true 
@@ -28,6 +32,7 @@ const userSchema = new mongoose.Schema(
     street: {
       type: String,
       required: true,
+      minlength: [5, "Street address must be at least 5 characters long"],
     },
     apt: {
       type: String,
@@ -35,10 +40,12 @@ const userSchema = new mongoose.Schema(
     city: {
       type: String,
       required: true,
+      minlength: [2, "City name must be at least 2 characters long"],
     },
     state: {
       type: String,
       required: true,
+      match: [/^[A-Z]{2}$/, "Please enter a valid 2-letter state code (e.g., 'NY')"],
     },
     zipCode: {
       type: String,
@@ -48,11 +55,15 @@ const userSchema = new mongoose.Schema(
     username: {
       type: String,
       required: true,
-      unique: true,
+      unique: true, 
+      minlength: [4, "Username must be at least 4 characters long"],
+      maxlength: [15, "Username cannot exceed 15 characters"],
+      match: [/^[a-zA-Z0-9]+$/, "Username can only contain alphanumeric characters"],
     },
     password: {
       type: String,
       required: true,
+      minlength: [6, "Password must be at least 6 characters long"],
     },
     phone: {
       type: String,
