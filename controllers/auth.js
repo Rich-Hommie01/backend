@@ -7,7 +7,6 @@ import { Transaction } from "../models/Transaction.js";
 import { validationResult } from "express-validator";
 import { generateUniqueAccountNumber } from '../utils/generateAccountNumber.js';
 
-// Signup Controller
 export const signup = async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
@@ -34,24 +33,20 @@ export const signup = async (req, res) => {
     ssn,
   } = req.body;
 
-  // Convert state to uppercase
   const upperCaseState = state.toUpperCase();
 
   try {
-    // Check if the username or email already exists
     const existingUser = await User.findOne({ $or: [{ username }, { email }] });
     if (existingUser) {
       const message = existingUser.username === username ? 'Username already exists' : 'Email already exists';
       return res.status(400).json({ success: false, message });
     }
 
-    // Attempt to generate a unique account number
-    const accountNumber = await generateUniqueAccountNumber();
+    const checkingAccountNumber = await generateUniqueAccountNumber();
+    const savingsAccountNumber = await generateUniqueAccountNumber();
 
-    // Hash the password
     const hashedPassword = await bcryptjs.hash(password, 10);
 
-    // Create a new user instance
     const user = new User({
       email,
       password: hashedPassword,
@@ -62,7 +57,7 @@ export const signup = async (req, res) => {
       street,
       apt,
       city,
-      state: upperCaseState, // Save the uppercase state
+      state: upperCaseState,
       zipCode,
       username,
       phone,
@@ -70,16 +65,20 @@ export const signup = async (req, res) => {
       issueState,
       expirationDate,
       ssn,
-      accountNumber,
+      accounts: {
+        checking: checkingAccountNumber,
+        savings: savingsAccountNumber,
+      },
       routingNumber: fixedRoutingNumber,
-      balance: 0, // Initialize balance to zero or any default value
+      balance: {
+        checking: 0,
+        savings: 0,
+      },
       isApproved: false,
     });
 
-    // Save the user to the database
     await user.save();
 
-    // Generate and set authentication token
     generateTokenAndSetCookie(res, user._id);
 
     res.status(201).json({
@@ -94,7 +93,6 @@ export const signup = async (req, res) => {
   } catch (error) {
     console.error('Error in signup:', error);
     if (error.code === 11000) {
-      // Handle duplicate key error (e.g., accountNumber or username/email already exists)
       const duplicatedField = Object.keys(error.keyPattern)[0];
       const message = `${duplicatedField.charAt(0).toUpperCase() + duplicatedField.slice(1)} already exists`;
       return res.status(400).json({ success: false, message });
@@ -103,11 +101,9 @@ export const signup = async (req, res) => {
   }
 };
 
-// Check if username exists
 export const checkUsername = async (req, res) => {
   const { username } = req.body;
   try {
-    // Check if the username already exists in the database
     const existingUser = await User.findOne({ username });
     if (existingUser) {
       return res.status(400).json({ success: false, message: 'Username already exists' });
@@ -121,8 +117,6 @@ export const checkUsername = async (req, res) => {
 };
 
 
-
-// Login Controller
 export const login = async (req, res) => {
   const { username, password } = req.body;
   try {
@@ -163,9 +157,8 @@ export const login = async (req, res) => {
   }
 };
 
-// Update Balance Controller
 export const updateBalance = async (req, res) => {
-  const { userId, amount } = req.body;
+  const { userId, amount, accountType } = req.body;
 
   try {
     const user = await User.findById(userId);
@@ -173,17 +166,23 @@ export const updateBalance = async (req, res) => {
       return res.status(404).json({ success: false, message: "User not found" });
     }
 
-    // Update user balance
-    user.balance += amount;
+    if (accountType === 'checking') {
+      user.balance.checking += amount;
+    } else if (accountType === 'savings') {
+      user.balance.savings += amount;
+    } else {
+      return res.status(400).json({ success: false, message: "Invalid account type" });
+    }
+
     await user.save();
 
-    // Create a new transaction
     const transaction = new Transaction({
       userId,
       amount,
       description: 'Online scheduled transfer from CHK 4924 Confirmation# xxxxx90304',
+      accountType,
     });
-    await transaction.save(); // Save the transaction to the database
+    await transaction.save();
 
     res.status(200).json({
       success: true,
@@ -195,26 +194,27 @@ export const updateBalance = async (req, res) => {
   }
 };
 
-// Get Transactions Controller
 export const getTransactions = async (req, res) => {
-  const { userId } = req.params;
+  const { userId, accountType } = req.params;
 
   try {
-    const transactions = await Transaction.find({ userId });
+    const filter = { userId };
+    if (accountType) {
+      filter.accountType = accountType;
+    }
+
+    const transactions = await Transaction.find(filter);
     res.status(200).json(transactions);
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
 };
 
-// Logout Controller
 export const logout = async (req, res) => {
   res.clearCookie("token");
   res.status(200).json({ success: true, message: "Logged out successfully" });
 };
 
-
-// Forgot Password Controller
 export const forgotPassword = async (req, res) => {
   const { email } = req.body;
   try {
@@ -225,7 +225,7 @@ export const forgotPassword = async (req, res) => {
     }
 
     const resetToken = crypto.randomBytes(20).toString("hex");
-    const resetTokenExpiresAt = Date.now() + 1 * 60 * 60 * 1000; // 1 hour
+    const resetTokenExpiresAt = Date.now() + 1 * 60 * 60 * 1000;
 
     user.resetPasswordToken = resetToken;
     user.resetPasswordExpiresAt = resetTokenExpiresAt;
@@ -244,7 +244,6 @@ export const forgotPassword = async (req, res) => {
   }
 };
 
-// Reset Password Controller
 export const resetPassword = async (req, res) => {
   try {
     const { token } = req.params;
@@ -275,7 +274,6 @@ export const resetPassword = async (req, res) => {
   }
 };
 
-// Check Authentication Controller
 export const checkAuth = async (req, res) => {
   try {
     const user = await User.findById(req.userId).select("-password");
