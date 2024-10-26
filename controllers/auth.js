@@ -151,6 +151,7 @@ export const login = async (req, res) => {
         ...user._doc,    
         password: undefined,
         ssn: undefined,
+        lastLogin: previousLastLogin,
       },
     });
   } catch (error) {
