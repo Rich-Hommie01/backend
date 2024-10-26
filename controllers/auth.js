@@ -195,7 +195,8 @@ export const updateBalance = async (req, res) => {
 };
 
 export const getTransactions = async (req, res) => {
-  const { userId, accountType } = req.params;
+  const { userId } = req.params;
+  const { accountType } = req.query;
 
   try {
     const filter = { userId };
@@ -209,6 +210,7 @@ export const getTransactions = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
 
 export const logout = async (req, res) => {
   res.clearCookie("token");
