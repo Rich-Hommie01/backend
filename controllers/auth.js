@@ -138,6 +138,8 @@ export const login = async (req, res) => {
 
     generateTokenAndSetCookie(res, user._id);
 
+    const previousLastLogin = user.lastLogin;
+
     user.lastLogin = new Date();
     await user.save();
 
@@ -152,7 +154,6 @@ export const login = async (req, res) => {
       },
     });
   } catch (error) {
-    console.log("Error in login ", error);
     res.status(400).json({ success: false, message: error.message });
   }
 };
